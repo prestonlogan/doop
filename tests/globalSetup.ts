@@ -16,16 +16,26 @@ const catalogs = createServer((req, res) => {
     path === '/anthropic'
       ? ['claude-sonnet-5', 'claude-opus-5', 'claude-opus-5-5', 'claude-haiku-4-5-20251001']
       : ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-6-astra', 'gpt-6.1-sol']
-  const body = {
-    data: ids.map((id) => ({
-      id,
-      display_name: id,
-      created: 1,
-      max_tokens: 64000,
-      capabilities: { image_input: { supported: true } },
-    })),
-    has_more: false,
-  }
+  const body =
+    path === '/gemini'
+      ? {
+          models: ['gemini-3.7-flash', 'gemini-3.1-pro-preview', 'gemini-3.8-flash'].map((id) => ({
+            name: `models/${id}`,
+            displayName: id,
+            supportedGenerationMethods: ['generateContent'],
+            outputTokenLimit: 65536,
+          })),
+        }
+      : {
+          data: ids.map((id) => ({
+            id,
+            display_name: id,
+            created: 1,
+            max_tokens: 64000,
+            capabilities: { image_input: { supported: true } },
+          })),
+          has_more: false,
+        }
   res.writeHead(200, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify(body))
 })

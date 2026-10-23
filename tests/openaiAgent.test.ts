@@ -643,6 +643,57 @@ describe('API-key model discovery', () => {
     expect(JSON.stringify(catalog)).not.toContain(account.apiKey)
   })
 
+  it('paginates Gemini and excludes image, audio, Live, embeddings and unsupported generation methods', async () => {
+    const model = (id: string, methods = ['generateContent'], outputTokenLimit = 65536) => ({
+      name: `models/${id}`,
+      displayName: id,
+      supportedGenerationMethods: methods,
+      outputTokenLimit,
+    })
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        Response.json({
+          models: [
+            model('gemini-3.8-flash'),
+            model('gemini-3.8-flash-tts'),
+            model('gemini-3.1-flash-image'),
+            model('gemini-3.8-live'),
+          ],
+          nextPageToken: 'next',
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          models: [
+            model('gemini-4-argon'),
+            model('gemini-3.1-pro-preview'),
+            { ...model('gemini-2.5-flash-preview-09-2025'), displayName: undefined },
+            model('gemini-embedding-001', ['embedContent']),
+            model('gemini-3.5-flash', ['interactions']),
+            model('gemini-2.5-flash', ['generateContent'], 8192),
+          ],
+        }),
+      )
+    const account = {
+      userId: 'gemini-catalog',
+      kind: 'gemini-key' as const,
+      apiKey: 'synthetic-google-key',
+      connectedAt: 1,
+    }
+    const catalog = await getApiModelCatalog(account)
+    expect(catalog.models.map((m) => m.id)).toEqual([
+      'gemini-4-argon',
+      'gemini-3.8-flash',
+      'gemini-3.1-pro-preview',
+      'gemini-2.5-flash-preview-09-2025',
+    ])
+    expect(catalog.models.at(-1)?.name).toBe('gemini-2.5-flash-preview-09-2025')
+    expect(new URL(String(fetch.mock.calls[1]![0])).searchParams.get('pageToken')).toBe('next')
+    expect(String(fetch.mock.calls[0]![0])).not.toContain(account.apiKey)
+    expect(fetch.mock.calls[0]![1]?.headers).toEqual({ 'x-goog-api-key': account.apiKey })
+  })
+
   it('never serves a partially fetched catalog when pagination fails or repeats', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       Response.json({

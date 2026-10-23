@@ -282,6 +282,11 @@ offers the Claude models that take images and allow the agent's 32k output budge
 unknown capabilities are left out. The selected id is sent to the Messages API as-is, so a new
 Claude release shows up without a code change.
 
+A connected Gemini API key reads Google's model list (`GEMINI_MODELS_URL`, paginated) and offers the
+reviewed Gemini Pro and Flash families that support `generateContent` and a 32k output budget,
+leaving out image, audio, Live and embedding variants. Gemini tool turns carry Google's thought
+signatures back on the next request, which Gemini requires for multi-step tool calls.
+
 OpenAI registers no redirect URI for a hosted app, so connecting ChatGPT takes one of three shapes
 and Doop picks the cheapest one available:
 

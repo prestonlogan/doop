@@ -66,9 +66,9 @@ export function modelFor(account: Pick<ModelAccount, 'model'>): string {
    admits other originators. */
 export const ORIGINATOR = env.CHATGPT_ORIGINATOR
 
-export type TurnBlock = (Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam) & {
-  openaiOutput?: ResponseBody['output']
-}
+export type TurnBlock = (
+  Anthropic.TextBlockParam | (Anthropic.ToolUseBlockParam & { googleThoughtSignature?: string })
+) & { openaiOutput?: ResponseBody['output'] }
 export type StopReason = 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal'
 
 export interface TurnRequest {

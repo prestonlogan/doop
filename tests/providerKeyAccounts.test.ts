@@ -51,7 +51,7 @@ it('stores a Gemini key and resets the model on a provider switch', async () => 
   const status = await response.json()
   expect(status).toMatchObject({ connected: true, kind: 'gemini-key', model: 'gemini-3.7-flash' })
   expect(JSON.stringify(status)).not.toContain('AIzaTestKeyLongEnoughToPass123456')
-  expect((await alice.patch('/api/model-account', { model: 'gemini-3.1-pro-preview' })).status).toBe(200)
+  expect((await alice.patch('/api/model-account', { model: 'gemini-3.8-flash' })).status).toBe(200)
   expect((await alice.delete('/api/model-account')).status).toBe(200)
 })
 

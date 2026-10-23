@@ -62,6 +62,7 @@ export function startServer(env: Record<string, string> = {}, reuseDir?: string)
     {
       OPENAI_MODELS_URL: `${inject('modelCatalogUrl')}/openai`,
       ANTHROPIC_MODELS_URL: `${inject('modelCatalogUrl')}/anthropic`,
+      GEMINI_MODELS_URL: `${inject('modelCatalogUrl')}/gemini`,
       ...env,
     },
     reuseDir,
