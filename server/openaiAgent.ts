@@ -66,7 +66,9 @@ export function modelFor(account: Pick<ModelAccount, 'model'>): string {
    admits other originators. */
 export const ORIGINATOR = env.CHATGPT_ORIGINATOR
 
-export type TurnBlock = Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam
+export type TurnBlock = (Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam) & {
+  openaiOutput?: ResponseBody['output']
+}
 export type StopReason = 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal'
 
 export interface TurnRequest {
@@ -161,6 +163,14 @@ function toInput(messages: Anthropic.MessageParam[]): unknown[] {
       })
       continue
     }
+    // Keep the original output together: reconstructing visible blocks loses
+    // encrypted reasoning and assistant phases needed by stateless tool loops.
+    const replay =
+      message.role === 'assistant' ? (message.content[0] as TurnBlock | undefined)?.openaiOutput : undefined
+    if (replay) {
+      items.push(...replay)
+      continue
+    }
     const userParts: Part[] = []
     const trailingImages: Part[] = []
     for (const block of message.content) {
@@ -231,6 +241,10 @@ interface ResponseBody {
     id?: string
     name?: string
     arguments?: string
+    encrypted_content?: string | null
+    summary?: { type: string; text?: string }[]
+    role?: string
+    phase?: string | null
     content?: { type: string; text?: string; refusal?: string }[]
     /** image_generation_call items: the finished image, base64 */
     result?: string | null
@@ -271,6 +285,14 @@ function fromResponse(body: ResponseBody): TurnResult {
   /* a response with nothing in it would end the loop silently; make it a
      visible failure instead */
   if (content.length === 0 && !refused) throw new Error('OpenAI returned an empty response')
+  if (content[0]) {
+    content[0].openaiOutput = (body.output ?? []).filter(
+      (item) =>
+        item.type === 'message' ||
+        item.type === 'function_call' ||
+        (item.type === 'reasoning' && !!item.encrypted_content),
+    )
+  }
   return { content, stop_reason: stop }
 }
 
@@ -388,6 +410,7 @@ async function runApiKey(account: ModelAccount, req: TurnRequest): Promise<TurnR
       tool_choice: 'auto',
       parallel_tool_calls: false,
       reasoning: { effort: REASONING_EFFORT },
+      include: ['reasoning.encrypted_content'],
       max_output_tokens: req.maxTokens,
       store: false,
     }),

@@ -81,3 +81,13 @@ it('validates image-model picks against the registry and this user’s credentia
     selected: true,
   })
 })
+
+it('discovers OpenAI models, accepts an available new ID and rejects off-catalog IDs', async () => {
+  const response = await alice.post('/api/model-account/openai-key', { apiKey: 'sk-synthetic-openai' })
+  const status = await response.json()
+  expect(status.menus['openai-key'].some((model: { id: string }) => model.id === 'gpt-6.1-sol')).toBe(true)
+  expect((await alice.patch('/api/model-account', { model: 'gpt-6.1-sol' })).status).toBe(200)
+  expect(await (await alice.get('/api/model-account')).json()).toMatchObject({ model: 'gpt-6.1-sol' })
+  expect((await alice.patch('/api/model-account', { model: 'gpt-6.9-sol' })).status).toBe(400)
+  expect((await alice.patch('/api/model-account', { model: 'gpt-image-2' })).status).toBe(400)
+})

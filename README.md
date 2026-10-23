@@ -270,6 +270,13 @@ choose again rather than switching silently. A failed fetch shows a warning and 
 for the same account; an authentication failure clears it. The other providers keep their curated
 menus.
 
+A connected OpenAI API key does the same with `/v1/models` (`OPENAI_MODELS_URL`). That catalog does
+not describe capabilities, so discovery admits the reviewed general-purpose GPT-5, GPT-6, o3 and
+o4-mini families and leaves out chat-only, Codex, research, audio and image variants; a new family
+still needs a review. A run whose stored model the key can no longer reach stops before inference
+and asks for another pick. Tool turns replay OpenAI's encrypted reasoning and assistant phases, so
+stateless (`store: false`) tool loops keep working on reasoning models.
+
 OpenAI registers no redirect URI for a hosted app, so connecting ChatGPT takes one of three shapes
 and Doop picks the cheapest one available:
 

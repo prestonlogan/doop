@@ -8,6 +8,7 @@ import { CLAUDE_MODEL_IDS, normalizeClaudeModel } from '../shared/localAgent.ts'
 import { GEMINI_MODELS, OPENROUTER_MODELS } from '../shared/modelMenu.ts'
 import { isKnownModel, modelFor } from './openaiAgent.ts'
 import { getChatgptModelCatalog } from './chatgptModels.ts'
+import { getApiModelCatalog, hasApiModelCatalog } from './providerModels.ts'
 import type { ModelCatalog } from './modelCatalog.ts'
 
 /**
@@ -179,6 +180,7 @@ export function accountVisionFor(account: Pick<ModelAccount, 'kind' | 'model'>):
  *  publishes one; null keeps the curated menu. */
 export async function catalogForAccount(account: ModelAccount): Promise<ModelCatalog | null> {
   if (account.kind === 'chatgpt') return getChatgptModelCatalog(await withFreshToken(account))
+  if (hasApiModelCatalog(account.kind)) return getApiModelCatalog(account)
   return null
 }
 
