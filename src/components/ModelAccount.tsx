@@ -5,7 +5,7 @@ import { LocalClaudeRow } from './LocalClaude'
 import { authClient } from '../lib/auth'
 import { selectLocalAgent, useLocalAgent } from '../lib/localAgent'
 import { isDesktopShell } from '../lib/shell'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '../lib/api'
 import type { AgentModelOption, DeviceFlow, ModelAccountKind, ModelAccountStatus } from '../lib/api'
@@ -41,11 +41,34 @@ export function useModelAccount(): {
   set: (next: ModelAccountStatus) => void
 } {
   const [account, setAccount] = useState<ModelAccountStatus | null>(null)
+  /* bumped by every refresh and every saved change, so a slow refresh can't
+     put back the model a newer save or refresh replaced */
+  const version = useRef(0)
   const refresh = useCallback(() => {
-    api.modelAccount().then(setAccount, () => {})
+    const started = ++version.current
+    api.modelAccount().then(
+      (next) => {
+        if (started === version.current) setAccount(next)
+      },
+      () => {},
+    )
   }, [])
-  useEffect(refresh, [refresh])
-  return { account, refresh, set: setAccount }
+  const set = useCallback((next: ModelAccountStatus) => {
+    version.current++
+    setAccount(next)
+  }, [])
+  /* a provider's catalog changes without Doop knowing, so re-read it when
+     the window comes back and every few minutes while it stays open */
+  useEffect(() => {
+    refresh()
+    const timer = window.setInterval(refresh, 5 * 60_000)
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [refresh])
+  return { account, refresh, set }
 }
 
 /**
@@ -670,6 +693,11 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
 
       {/* the browser cannot run the local CLI, so the plan closes the list as a pointer to the desktop app */}
       {!desktop && <LocalClaudeRow />}
+      {account.modelCatalogWarning && (
+        <p role="status" className="mt-[10px] text-body text-accent-ink">
+          {account.modelCatalogWarning}
+        </p>
+      )}
       {error && <p className="mt-[10px] text-body text-accent-ink">{error}</p>}
     </div>
   )

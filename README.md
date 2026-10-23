@@ -262,6 +262,14 @@ default they start on. Note that
 `gpt-5.4` and `gpt-5.4-mini` retire from ChatGPT-authenticated Codex on **31 August 2026**, so
 pinning a 5.4 id via that env var will break the subscription path after that date.
 
+A connected ChatGPT subscription offers the models that account can actually run instead of the
+curated list: Doop reads the Codex backend's catalog (`CHATGPT_MODELS_URL`), keeps the visible
+models that take text and images, and caches it for five minutes; the UI re-reads it on focus.
+The same list validates a pick, and a selection the account no longer offers asks the user to
+choose again rather than switching silently. A failed fetch shows a warning and keeps the last list
+for the same account; an authentication failure clears it. The other providers keep their curated
+menus.
+
 OpenAI registers no redirect URI for a hosted app, so connecting ChatGPT takes one of three shapes
 and Doop picks the cheapest one available:
 

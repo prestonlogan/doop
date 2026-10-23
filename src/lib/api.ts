@@ -167,7 +167,10 @@ export interface ModelAccountStatus {
   connectedAt?: number
   /** false when the server has switched the ChatGPT flow off */
   chatgptEnabled?: boolean
-  /** the curated menu each provider's picker offers */
+  /** why the connected provider's model list is empty or stale; safe to show */
+  modelCatalogWarning?: string
+  /** the menu each provider's picker offers: discovered for a connected
+      ChatGPT account, curated otherwise */
   menus?: Record<ModelAccountKind, AgentModelOption[]>
 }
 

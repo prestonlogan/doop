@@ -1,12 +1,14 @@
 import { env } from './env.ts'
 import http from 'node:http'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from './db/index.ts'
 import { modelAccounts } from './db/schema.ts'
 import { CLAUDE_MODEL_IDS, normalizeClaudeModel } from '../shared/localAgent.ts'
 import { GEMINI_MODELS, OPENROUTER_MODELS } from '../shared/modelMenu.ts'
 import { isKnownModel, modelFor } from './openaiAgent.ts'
+import { getChatgptModelCatalog } from './chatgptModels.ts'
+import type { ModelCatalog } from './modelCatalog.ts'
 
 /**
  * "Bring your own model": a user connects their ChatGPT subscription (or an
@@ -173,12 +175,43 @@ export function accountVisionFor(account: Pick<ModelAccount, 'kind' | 'model'>):
   return account.kind !== 'openrouter-key'
 }
 
-/** Change which model tier this account runs on. */
+/** The connected account's own model catalog, for the kinds whose provider
+ *  publishes one; null keeps the curated menu. */
+export async function catalogForAccount(account: ModelAccount): Promise<ModelCatalog | null> {
+  if (account.kind === 'chatgpt') return getChatgptModelCatalog(await withFreshToken(account))
+  return null
+}
+
+/** Resolve only the expected provider, even if a connection switches in flight. */
+export async function accountModelCatalog(userId: string, kind: AccountKind): Promise<ModelCatalog | null> {
+  const account = await getAccount(userId)
+  if (!account || account.kind !== kind) return { models: [], warning: 'Provider changed. Refresh to load its models.' }
+  return catalogForAccount(account)
+}
+
+/** Change which model this account runs on. Only the model columns change, so
+ *  a token refresh during discovery can't be overwritten, and a connection
+ *  replaced meanwhile isn't resurrected. */
 export async function setAccountModel(userId: string, model: string): Promise<AccountStatus> {
   const account = await getAccount(userId)
   if (!account) throw new Error('no model account connected')
-  if (!MODEL_POLICY[account.kind].isKnown(model)) throw new Error('unknown model')
-  await save({ ...account, model })
+  const catalog = await catalogForAccount(account)
+  if (catalog) {
+    if (!catalog.models.some((option) => option.id === model)) throw new Error(catalog.warning ?? 'unknown model')
+  } else if (!MODEL_POLICY[account.kind].isKnown(model)) throw new Error('unknown model')
+  const updated = await db
+    .update(modelAccounts)
+    .set({ model, updatedAt: Date.now() })
+    .where(
+      and(
+        eq(modelAccounts.userId, userId),
+        eq(modelAccounts.kind, account.kind),
+        eq(modelAccounts.connectedAt, account.connectedAt),
+        ...(account.apiKey ? [eq(modelAccounts.apiKey, account.apiKey)] : []),
+      ),
+    )
+    .returning({ userId: modelAccounts.userId })
+  if (!updated.length) throw new Error('Model account changed. Refresh Settings and retry.')
   return getStatus(userId)
 }
 
