@@ -4,7 +4,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { db } from './db/index.ts'
 import { modelAccounts } from './db/schema.ts'
-import { CLAUDE_MODEL_IDS, normalizeClaudeModel } from '../shared/localAgent.ts'
+import { CLAUDE_MODEL_IDS, DEFAULT_CLAUDE_MODEL } from '../shared/localAgent.ts'
 import { GEMINI_MODELS, OPENROUTER_MODELS } from '../shared/modelMenu.ts'
 import { isKnownModel, modelFor } from './openaiAgent.ts'
 import { getChatgptModelCatalog } from './chatgptModels.ts'
@@ -144,8 +144,10 @@ const DEFAULT_GEMINI = env.DOOP_AGENT_GEMINI_MODEL
 const MODEL_POLICY: Record<AccountKind, { resolve(model?: string): string; isKnown(model: string): boolean }> = {
   chatgpt: { resolve: (model) => modelFor({ model }), isKnown: isKnownModel },
   'openai-key': { resolve: (model) => modelFor({ model }), isKnown: isKnownModel },
+  /* the stored id runs as-is: the key's catalog validates it, and CLI
+     aliases belong to the local runner, not the Messages API */
   'anthropic-key': {
-    resolve: normalizeClaudeModel,
+    resolve: (model) => model || DEFAULT_CLAUDE_MODEL,
     isKnown: (model) => CLAUDE_MODEL_IDS.some((id) => id === model),
   },
   'openrouter-key': {

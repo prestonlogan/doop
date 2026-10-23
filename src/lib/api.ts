@@ -170,7 +170,7 @@ export interface ModelAccountStatus {
   /** why the connected provider's model list is empty or stale; safe to show */
   modelCatalogWarning?: string
   /** the menu each provider's picker offers: discovered for a connected
-      ChatGPT account or OpenAI key, curated otherwise */
+      ChatGPT account, OpenAI key or Claude key, curated otherwise */
   menus?: Record<ModelAccountKind, AgentModelOption[]>
 }
 

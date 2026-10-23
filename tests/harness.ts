@@ -58,7 +58,15 @@ export function freePort(): Promise<number> {
  * dataDir) to reboot the same database on the same port.
  */
 export function startServer(env: Record<string, string> = {}, reuseDir?: string): Promise<Server> {
-  return boot({ OPENAI_MODELS_URL: `${inject('modelCatalogUrl')}/openai`, ...env }, reuseDir, inject('templateDir'))
+  return boot(
+    {
+      OPENAI_MODELS_URL: `${inject('modelCatalogUrl')}/openai`,
+      ANTHROPIC_MODELS_URL: `${inject('modelCatalogUrl')}/anthropic`,
+      ...env,
+    },
+    reuseDir,
+    inject('templateDir'),
+  )
 }
 
 async function boot(env: Record<string, string>, reuseDir: string | undefined, templateDir?: string): Promise<Server> {

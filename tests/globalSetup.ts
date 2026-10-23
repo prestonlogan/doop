@@ -10,10 +10,24 @@ import { buildTemplate } from './harness.ts'
    so overlapping runs in one checkout never see each other's files. */
 let dir: string
 // Synthetic provider catalogs: integration tests must never send fake keys to providers.
-const catalogs = createServer((_req, res) => {
-  const ids = ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-6-astra', 'gpt-6.1-sol']
+const catalogs = createServer((req, res) => {
+  const path = new URL(req.url!, 'http://localhost').pathname
+  const ids =
+    path === '/anthropic'
+      ? ['claude-sonnet-5', 'claude-opus-5', 'claude-opus-5-5', 'claude-haiku-4-5-20251001']
+      : ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-6-astra', 'gpt-6.1-sol']
+  const body = {
+    data: ids.map((id) => ({
+      id,
+      display_name: id,
+      created: 1,
+      max_tokens: 64000,
+      capabilities: { image_input: { supported: true } },
+    })),
+    has_more: false,
+  }
   res.writeHead(200, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify({ data: ids.map((id) => ({ id, created: 1 })) }))
+  res.end(JSON.stringify(body))
 })
 
 export async function setup(project: TestProject): Promise<void> {

@@ -10,7 +10,7 @@ import {
   runAzureTurn,
   runOpenAiTurn,
 } from '../server/openaiAgent.ts'
-import { parseAuthCode } from '../server/modelAccounts.ts'
+import { accountModelFor, parseAuthCode } from '../server/modelAccounts.ts'
 import { getChatgptModelCatalog } from '../server/chatgptModels.ts'
 import { getApiModelCatalog } from '../server/providerModels.ts'
 
@@ -601,5 +601,71 @@ describe('API-key model discovery', () => {
       warning: expect.any(String),
     })
     expect(fetch).toHaveBeenCalledTimes(4)
+  })
+
+  it('paginates Claude, checks capabilities and preserves new model IDs rather than CLI aliases', async () => {
+    const model = (id: string, supported = true, max_tokens = 64000) => ({
+      id,
+      display_name: id,
+      max_tokens,
+      capabilities: { image_input: { supported } },
+    })
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        Response.json({
+          data: [model('claude-opus-5-5'), model('claude-haiku-4-5', false), model('claude-sonnet-4', true, 8192)],
+          has_more: true,
+          last_id: 'cursor-one',
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          data: [
+            model('claude-sonnet-5-5'),
+            { ...model('claude-opus-4'), lifecycle: 'retired' },
+            { id: 'claude-fable-5-1', display_name: 'Unknown capabilities' },
+          ],
+          has_more: false,
+        }),
+      )
+    const account = {
+      userId: 'claude-catalog',
+      kind: 'anthropic-key' as const,
+      apiKey: 'sk-ant-synthetic',
+      connectedAt: 1,
+      model: 'claude-opus-5-5',
+    }
+    const catalog = await getApiModelCatalog(account)
+    expect(catalog.models.map((m) => m.id)).toEqual(['claude-opus-5-5', 'claude-sonnet-5-5'])
+    expect(new URL(String(fetch.mock.calls[1]![0])).searchParams.get('after_id')).toBe('cursor-one')
+    expect(accountModelFor(account)).toBe('claude-opus-5-5')
+    expect(JSON.stringify(catalog)).not.toContain(account.apiKey)
+  })
+
+  it('never serves a partially fetched catalog when pagination fails or repeats', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      Response.json({
+        data: [
+          {
+            id: 'claude-opus-5-5',
+            display_name: 'Opus',
+            max_tokens: 64000,
+            capabilities: { image_input: { supported: true } },
+          },
+        ],
+        has_more: true,
+        last_id: 'same',
+      }),
+    )
+    const result = await getApiModelCatalog({
+      userId: 'bad-pages',
+      kind: 'anthropic-key',
+      apiKey: 'synthetic',
+      connectedAt: 1,
+    })
+    expect(result.models).toEqual([])
+    expect(result.warning).toContain('Could not load')
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
 })

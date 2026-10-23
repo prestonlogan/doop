@@ -277,6 +277,11 @@ still needs a review. A run whose stored model the key can no longer reach stops
 and asks for another pick. Tool turns replay OpenAI's encrypted reasoning and assistant phases, so
 stateless (`store: false`) tool loops keep working on reasoning models.
 
+A connected Claude API key reads Anthropic's `/v1/models` (`ANTHROPIC_MODELS_URL`, paginated) and
+offers the Claude models that take images and allow the agent's 32k output budget; entries with
+unknown capabilities are left out. The selected id is sent to the Messages API as-is, so a new
+Claude release shows up without a code change.
+
 OpenAI registers no redirect URI for a hosted app, so connecting ChatGPT takes one of three shapes
 and Doop picks the cheapest one available:
 
